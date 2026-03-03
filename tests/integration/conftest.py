@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: MIT
 
 # Copyright (c) 2025 OmniNode Team
-"""Shared fixtures for all integration tests.
+"""Shared fixtures for all integration tests.  # ai-slop-ok: pre-existing module docstring
 
 This module provides common infrastructure fixtures that auto-configure from
 the project's .env file. All integration tests can use these fixtures without
@@ -45,6 +45,48 @@ from typing import TYPE_CHECKING, Any
 
 import pytest
 import pytest_asyncio
+
+# =============================================================================
+# Bus-local Kafka isolation hooks (OMN-3477)
+# =============================================================================
+
+
+def _refresh_kafka_runtime_state() -> None:
+    """Re-evaluate module-level Kafka globals from the current environment.
+
+    Called after mutating KAFKA_BOOTSTRAP_SERVERS in pytest_configure /
+    pytest_unconfigure so that skip markers and fixtures see the correct
+    server address rather than the stale value captured at import time.
+    """
+    global KAFKA_BOOTSTRAP_SERVERS, KAFKA_AVAILABLE
+    KAFKA_BOOTSTRAP_SERVERS = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:19092")
+    KAFKA_AVAILABLE = is_kafka_available()
+
+
+def pytest_configure(config: pytest.Config) -> None:
+    """Force bus_local Kafka config for all integration tests in this process."""
+    _prev_servers = os.environ.get("KAFKA_BOOTSTRAP_SERVERS")
+    _prev_allowlist = os.environ.get("KAFKA_BROKER_ALLOWLIST")
+    os.environ["KAFKA_BOOTSTRAP_SERVERS"] = "localhost:19092"
+    os.environ["KAFKA_BROKER_ALLOWLIST"] = "localhost:19092,127.0.0.1:19092"
+    config._kafka_isolation_prev = (_prev_servers, _prev_allowlist)  # type: ignore[attr-defined]
+    _refresh_kafka_runtime_state()
+
+
+def pytest_unconfigure(config: pytest.Config) -> None:
+    """Restore previous Kafka env vars after integration tests complete."""
+    prev = getattr(config, "_kafka_isolation_prev", (None, None))
+    _prev_servers, _prev_allowlist = prev
+    if _prev_servers is None:
+        os.environ.pop("KAFKA_BOOTSTRAP_SERVERS", None)
+    else:
+        os.environ["KAFKA_BOOTSTRAP_SERVERS"] = _prev_servers
+    if _prev_allowlist is None:
+        os.environ.pop("KAFKA_BROKER_ALLOWLIST", None)
+    else:
+        os.environ["KAFKA_BROKER_ALLOWLIST"] = _prev_allowlist
+    _refresh_kafka_runtime_state()
+
 
 if TYPE_CHECKING:
     from aiokafka import AIOKafkaProducer
@@ -120,8 +162,8 @@ def _parse_db_url_host_port(url: str) -> tuple[str, int]:
 # Kafka Configuration
 # =============================================================================
 
-KAFKA_BOOTSTRAP_SERVERS: str = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092")
-"""Kafka bootstrap servers. Configure via KAFKA_BOOTSTRAP_SERVERS env var."""
+KAFKA_BOOTSTRAP_SERVERS: str = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:19092")
+"""Kafka bootstrap servers. Configure via KAFKA_BOOTSTRAP_SERVERS env var (default: bus_local)."""
 
 KAFKA_REQUEST_TIMEOUT_MS: int = int(os.getenv("KAFKA_REQUEST_TIMEOUT_MS", "30000"))
 """Kafka request timeout in milliseconds. Default: 30000."""
@@ -191,7 +233,7 @@ def is_kafka_available(timeout: float = 2.0) -> bool:
             port = int(port_str)
         else:
             host = server
-            port = 9092
+            port = 19092  # bus_local default (OMN-3477)
 
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.settimeout(timeout)

@@ -5,7 +5,7 @@
 """TC5: Full-chain pattern learning pipeline integration test.
 
 Tests the complete pipeline: Learn -> Store -> Feedback -> Promote
-Uses real PostgreSQL (localhost:5432) and real Kafka (localhost:9092).
+Uses real PostgreSQL (localhost:5436 external port) and real Kafka (localhost:19092 bus_local; see OMN-3477).
 
 Chain:
   1. Pattern learning produces learned patterns from training data
@@ -29,8 +29,8 @@ Design Decision - Single Test Function:
     are not independently meaningful.
 
 Infrastructure Requirements:
-    - PostgreSQL: localhost:5432 (database: omniintelligence)
-    - Kafka/Redpanda: localhost:9092
+    - PostgreSQL: localhost:5436 (database: omniintelligence, external Docker port)
+    - Kafka/Redpanda: localhost:19092 (bus_local; see OMN-3477)
 
 Reference:
     - OMN-1800: E2E integration tests for pattern learning pipeline

@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: MIT
 
 # Copyright (c) 2025 OmniNode Team
-"""Fixtures for pattern_storage_effect integration tests.
+"""Fixtures for pattern_storage_effect integration tests.  # ai-slop-ok: pre-existing module docstring
 
 This module provides pytest fixtures for testing the NodePatternStorageEffect
 node with real and mock infrastructure. Infrastructure availability is detected
@@ -10,7 +10,7 @@ at runtime to allow tests to run with or without real PostgreSQL/Kafka.
 
 Infrastructure Configuration (from .env):
     - PostgreSQL: localhost:5432 (database: omniintelligence)
-    - Kafka/Redpanda: localhost:9092 (for host scripts)
+    - Kafka/Redpanda: localhost:19092 (bus_local; see OMN-3477)
 
 Reference:
     - OMN-1668: Pattern storage effect node implementation
